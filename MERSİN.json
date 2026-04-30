@@ -1,19 +1,5 @@
 {
-  "isTakipData": [
-    {
-      "_ui_id": "row_1777551999363",
-      "Tamamlandı": "HAYIR",
-      "İL": "MERSİN",
-      "İLÇE": "AKDENİZ",
-      "BİRİM": "AKDAM",
-      "UYGULAMA": "GÜNCELLEME",
-      "İHALELİ/MÜDÜRLÜK": "İhaleli",
-      "DURUMU": "",
-      "GÜNCELLEME PARSEL": "850",
-      "İDÖ PARSEL": "200",
-      "TOPLAM PARSEL": 1050
-    }
-  ],
+  "isTakipData": [],
   "customColumns": [],
   "durumlar": [
     "YER TESLİMİ YAPILDI",
