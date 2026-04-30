@@ -34,6 +34,19 @@
         button.info { background-color: #17a2b8; }
         button.warning { background-color: #ffc107; color: #212529; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; opacity: 0.7; }
+
+        @keyframes pulseWarning {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        .btn-needs-save {
+            animation: pulseWarning 1.5s infinite !important;
+            background-color: #ffc107 !important;
+            color: #000 !important;
+            border: 2px solid #dc3545 !important;
+            font-weight: bold;
+        }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: auto; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle; }
@@ -123,9 +136,12 @@
 <div id="yeni-kayit-modal" class="modal">
     <div class="modal-content" style="max-width: 400px;">
         <h3>Yeni Kayıt Ekle</h3>
-        <p>Aşağıdaki bilgileri doldurarak yeni bir satır ekleyin.</p>
+        <p style="margin: 0 0 15px 0; color: #0056b3; font-size: 16px;">
+            <strong>İşlem Yapılan İl:</strong> <span id="modal-aktif-il" style="text-decoration: underline;"></span>
+        </p>
+        <p style="margin-top:0; font-size: 13px; color:#666;">Aşağıdaki bilgileri doldurarak yeni bir satır ekleyin.</p>
+        
         <div style="display:flex; flex-direction:column; gap:10px;">
-            <input type="text" id="yeni-il" placeholder="İl Giriniz (Yeni bir il yazarsanız sistem oluşturur)">
             <input type="text" id="yeni-ilce" placeholder="İlçe Giriniz">
             <input type="text" id="yeni-birim" placeholder="Birim Giriniz">
             
@@ -187,18 +203,19 @@
 const GITHUB_KULLANICI_ADI = "gokhangeo";
 const GITHUB_REPO_ADI = "hataybm";
 
-// GitHub tarafından sağlanan Token'ı güvenlik için iki parça halinde yazıyoruz.
 const token_part1 = 'ghp_1Im4128xUP1uC8Oov';
 const token_part2 = '8yBd7oahk2S6a0aGBTj';
 const GITHUB_TOKEN = token_part1 + token_part2; 
 // ======================================================================
 
 const REPO_API_URL = `https://api.github.com/repos/${GITHUB_KULLANICI_ADI}/${GITHUB_REPO_ADI}/contents/`;
-let currentFileSHA = '';
-let currentIl = ''; 
-let illerListesi = [];
 
-// Aktif İl İçin Veri Yapısı
+const SABIT_ILLER = ['ADANA', 'MERSİN', 'HATAY', 'OSMANİYE'];
+let fileSHAs = {}; // Her ilin SHA değerini tutar
+let currentIl = ''; 
+let isDirty = false; 
+
+// Aktif İl(ler) İçin Veri Yapısı
 let globalData = {
     isTakipData: [],
     customColumns: [],
@@ -221,8 +238,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('tableContainer').addEventListener('change', handleTableChange);
     document.getElementById('tableContainer').addEventListener('click', handleTableClick);
 
+    // Yeni Kayıt Butonu Dinleyicisi
     document.getElementById('yeniKayitBtn').addEventListener('click', () => {
-        document.getElementById('yeni-il').value = currentIl; 
+        if (currentIl === 'TÜM İLLER') {
+            alert("Lütfen yeni kayıt eklemek için önce yukarıdaki menüden işlem yapmak istediğiniz ili seçin (Adana, Mersin, Hatay, Osmaniye).");
+            return;
+        }
+
+        document.getElementById('modal-aktif-il').textContent = currentIl;
         document.getElementById('yeni-ilce').value = '';
         document.getElementById('yeni-birim').value = '';
         document.getElementById('yeni-uygulama').value = 'GÜNCELLEME';
@@ -305,83 +328,102 @@ function initAnimatedBackground() {
 
 async function baslangicKurulumu() {
     document.getElementById('main-app-container').style.display = 'block';
-    document.getElementById('loader').style.display = 'block';
     
-    try {
-        const response = await fetch(REPO_API_URL, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` }, cache: 'no-cache' });
-        
-        if (response.ok) {
-            const files = await response.json();
-            illerListesi = files
-                .filter(f => f.name.endsWith('.json') && !['package.json', 'manifest.json'].includes(f.name))
-                .map(f => f.name.replace('.json', '').toUpperCase());
-        } else if (response.status === 404) {
-            illerListesi = [];
-        } else {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.message || `Hata Kodu: ${response.status}`);
-        }
+    const ilSecici = document.getElementById('ilSecici');
+    ilSecici.innerHTML = '<option value="TÜM İLLER">TÜM İLLER (Genel Görünüm)</option>';
+    SABIT_ILLER.forEach(il => {
+        ilSecici.innerHTML += `<option value="${il}">${il}</option>`;
+    });
 
-        const ilSecici = document.getElementById('ilSecici');
-        ilSecici.innerHTML = '';
-        
-        if (illerListesi.length === 0) {
-            ilSecici.innerHTML = '<option value="">Hiç Kayıt Yok - Yeni Ekleyin</option>';
-            document.getElementById('loader').style.display = 'none';
-        } else {
-            illerListesi.sort().forEach(il => {
-                ilSecici.innerHTML += `<option value="${il}">${il}</option>`;
-            });
-            currentIl = illerListesi[0];
-            await fetchCityData(currentIl);
-        }
-    } catch (error) {
-        alert("Bağlantı Hatası: " + error.message + "\n\n(Lütfen Token veya Depo adını kontrol edin.)");
-        document.getElementById('loader').style.display = 'none';
-    }
+    currentIl = 'ADANA'; // Başlangıçta ilk ili seçili yapıyoruz
+    ilSecici.value = currentIl;
+    await fetchCityData(currentIl);
 }
 
 async function loadSelectedIl() {
     const secili = document.getElementById('ilSecici').value;
-    if (secili) {
-        await fetchCityData(secili);
+    if (secili && secili !== currentIl) {
+        if (isDirty) {
+            showConfirmModal("Kaydedilmemiş değişiklikleriniz var! Başka bir ile geçerseniz bu değişiklikler kaybolabilir. Yine de geçmek istiyor musunuz?", async () => {
+                isDirty = false;
+                markAsClean();
+                await fetchCityData(secili);
+            });
+        } else {
+            await fetchCityData(secili);
+        }
     }
 }
 
-async function fetchCityData(ilAdi) {
-    document.getElementById('loader').style.display = 'block';
-    currentIl = ilAdi.toUpperCase();
-    const fileName = `${currentIl}.json`;
+async function fetchSingleCity(ilAdi, isAppend) {
+    const fileName = `${ilAdi}.json`;
     const url = `${REPO_API_URL}${fileName}`;
     
+    try {
+        const response = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` }, cache: 'no-cache' });
+        
+        if (response.ok) {
+            const data = await response.json();
+            fileSHAs[ilAdi] = data.sha;
+            const parsed = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+            
+            // Eğer isTakipData içindeki kayıtlarda il yoksa, garanti altına al
+            if (parsed.isTakipData) {
+                parsed.isTakipData.forEach(r => r['İL'] = ilAdi);
+            }
+
+            if (isAppend) {
+                if(parsed.isTakipData) globalData.isTakipData = globalData.isTakipData.concat(parsed.isTakipData);
+                if(parsed.customColumns) {
+                    parsed.customColumns.forEach(c => {
+                        if(!globalData.customColumns.includes(c)) globalData.customColumns.push(c);
+                    });
+                }
+            } else {
+                globalData = { ...globalData, ...parsed };
+                if (globalData.isTakipData) globalData.isTakipData.forEach(r => r['İL'] = ilAdi);
+            }
+        } else if (response.status === 404) {
+            fileSHAs[ilAdi] = ''; // Dosya yoksa boş
+            console.log(`${ilAdi} için henüz bir kayıt dosyası yok.`);
+        } else {
+            throw new Error(`Hata Kodu: ${response.status}`);
+        }
+    } catch (error) {
+        console.error(`${ilAdi} verisi çekilirken hata: ${error.message}`);
+    }
+}
+
+async function fetchCityData(secilenIl) {
+    document.getElementById('loader').style.display = 'block';
+    currentIl = secilenIl.toUpperCase();
+    
+    // Verileri temizle
     globalData = {
         isTakipData: [],
         customColumns: [],
         durumlar: ['YER TESLİMİ YAPILDI', 'TAPU KAYIT KARŞILAŞTIRMA', 'DEĞERLENDİRMEDE', 'ASKI İLANINA HAZIRLANIYOR', 'KOMİSYON AŞAMASINDA', 'KESİN ASKIDA', 'DEVİR YAPILDI', 'TESCİLİ BİTTİ'],
         uygulamalar: ['GÜNCELLEME', 'GÜNCELLEME(2026)', '2/B']
     };
-    currentFileSHA = '';
 
     try {
-        const response = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` }, cache: 'no-cache' });
-        
-        if (response.ok) {
-            const data = await response.json();
-            currentFileSHA = data.sha;
-            const jsonString = decodeURIComponent(escape(atob(data.content)));
-            const fetchedData = JSON.parse(jsonString);
-            globalData = { ...globalData, ...fetchedData };
-        } else if (response.status === 404) {
-            // Dosya henüz yoksa 404 döner, boş veriyle başlatacağız, hata göstermeyeceğiz.
-            console.log(`${ilAdi} için henüz bir kayıt dosyası yok. Boş sayfa oluşturuluyor.`);
+        if (currentIl === 'TÜM İLLER') {
+            for (const il of SABIT_ILLER) {
+                await fetchSingleCity(il, true); // true = append
+            }
         } else {
-            throw new Error(`Hata Kodu: ${response.status}`);
+            await fetchSingleCity(currentIl, false); // false = overwrite
         }
 
         document.getElementById('ilSecici').value = currentIl;
         renderAllTables();
+        
         document.getElementById('uyari').style.display = 'block';
         document.getElementById('githubKaydetBtn').disabled = false;
+        
+        // Yeni sütun ekleme butonu TÜM İLLER görünümünde kapatılsın (karışıklığı önlemek için)
+        document.getElementById('sutunYonetimiBtn').disabled = (currentIl === 'TÜM İLLER');
+
         markAsClean();
         durumFiltresiDoldur();
         
@@ -389,7 +431,7 @@ async function fetchCityData(ilAdi) {
         if (firstTab) showTab(firstTab.dataset.uygulama);
 
     } catch (error) {
-        alert("İl verisi çekilirken bir sorun oluştu: " + error.message);
+        alert("Veri çekilirken bir sorun oluştu: " + error.message);
     } finally {
         document.getElementById('loader').style.display = 'none';
     }
@@ -521,7 +563,7 @@ function handleTableClick(event) {
             globalData.isTakipData = globalData.isTakipData.filter(r => r._ui_id !== rowKey);
             markAsDirty();
             renderAllTables();
-            showToast('Kayıt silindi.');
+            showToast('Kayıt silindi. Lütfen değişiklikleri kaydetmeyi unutmayın.');
         });
     } else if (button.classList.contains('not-btn')) {
         currentEditingRowKey = rowKey;
@@ -565,7 +607,7 @@ function handleTableChange(event) {
 }
 
 async function addYeniKayit() {
-    const il = document.getElementById('yeni-il').value.trim().toUpperCase();
+    const il = currentIl; 
     const ilce = document.getElementById('yeni-ilce').value.trim().toUpperCase();
     const birim = document.getElementById('yeni-birim').value.trim().toUpperCase();
     let uygulama = document.getElementById('yeni-uygulama').value;
@@ -576,8 +618,8 @@ async function addYeniKayit() {
         if (!globalData.uygulamalar.includes(uygulama)) globalData.uygulamalar.push(uygulama);
     }
 
-    if(!il || !ilce || !birim) {
-        alert("Lütfen İl, İlçe ve Birim bilgilerini eksiksiz giriniz.");
+    if(!ilce || !birim) {
+        alert("Lütfen İlçe ve Birim bilgilerini eksiksiz giriniz.");
         return;
     }
 
@@ -601,41 +643,17 @@ async function addYeniKayit() {
         newRow['BLOK SAYISI'] = document.getElementById('yeni-2b-blok').value || 0;
     }
 
-    if (il === currentIl || currentIl === '') {
-        if(currentIl === '') {
-             currentIl = il;
-             document.getElementById('ilSecici').innerHTML = `<option value="${il}">${il}</option>`;
-             illerListesi.push(il);
-        }
-        globalData.isTakipData.unshift(newRow); 
-        document.getElementById('yeni-kayit-modal').style.display = 'none';
-        markAsDirty();
-        renderAllTables();
-        
-        const targetTab = ihaleli === 'Müdürlük' ? 'Müdürlük' : uygulama;
-        showTab(targetTab);
-        showToast('Yeni kayıt eklendi.');
-    } else {
-        showConfirmModal(`Eklemek istediğiniz kayıt "${il}" iline ait. Sistem otomatik olarak o il'e geçiş yapıp kaydı ekleyecektir. Onaylıyor musunuz?`, async () => {
-            document.getElementById('yeni-kayit-modal').style.display = 'none';
-            if(document.getElementById('githubKaydetBtn').classList.contains('warning')) {
-                await saveData(currentIl, globalData, currentFileSHA);
-            }
-            
-            if (!illerListesi.includes(il)) {
-                illerListesi.push(il);
-                document.getElementById('ilSecici').innerHTML += `<option value="${il}">${il}</option>`;
-            }
-            
-            await fetchCityData(il);
-            
-            globalData.isTakipData.unshift(newRow);
-            markAsDirty();
-            renderAllTables();
-            showTab(uygulama);
-            showToast(`${il} iline kayıt başarıyla eklendi!`);
-        });
-    }
+    globalData.isTakipData.unshift(newRow); 
+    document.getElementById('yeni-kayit-modal').style.display = 'none';
+    markAsDirty();
+    renderAllTables();
+    
+    const targetTab = ihaleli === 'Müdürlük' ? 'Müdürlük' : uygulama;
+    showTab(targetTab);
+    
+    // Doğrudan kaydet, böylece dosya ilk kez oluşsa bile garanti altına alınır.
+    await saveToGitHub();
+    showToast(`${il} için yeni kayıt eklendi ve sisteme işlendi.`);
 }
 
 function openSutunYonetimi() {
@@ -685,22 +703,43 @@ function saveNoteChanges() {
         document.getElementById('not-modal').style.display = 'none';
         markAsDirty();
         renderAllTables();
-        showToast('Not kaydedildi.');
+        showToast('Not güncellendi.');
     }
 }
 
 async function saveToGitHub() {
-    if (!currentIl) return;
     const btn = document.getElementById('githubKaydetBtn');
     btn.disabled = true;
     btn.innerHTML = 'Kaydediliyor...';
     
     try {
-        await saveData(currentIl, globalData, currentFileSHA);
+        if (currentIl === 'TÜM İLLER') {
+            // "TÜM İLLER" ekranındaysak, verileri il bazında ayırıp ayrı ayrı kaydetmemiz gerekir
+            const grouped = {};
+            SABIT_ILLER.forEach(il => grouped[il] = []);
+            globalData.isTakipData.forEach(row => {
+                const il = row['İL'];
+                if(grouped[il]) grouped[il].push(row);
+            });
+            
+            for (const il of SABIT_ILLER) {
+                const ilData = {
+                    isTakipData: grouped[il],
+                    customColumns: globalData.customColumns,
+                    durumlar: globalData.durumlar,
+                    uygulamalar: globalData.uygulamalar
+                };
+                await saveData(il, ilData, fileSHAs[il]);
+            }
+        } else {
+            // Tek bir il ekranındaysak sadece onu kaydet
+            await saveData(currentIl, globalData, fileSHAs[currentIl]);
+        }
+        
         markAsClean();
-        showToast("Veriler başarıyla GitHub'a kaydedildi!");
+        showToast("Tüm değişiklikler başarıyla GitHub'a kaydedildi!");
     } catch (error) {
-        markAsDirty();
+        markAsDirty(); // Kayıt tamamlanmadığı için buton uyarısı devam etsin
         alert("Kaydetme Başarısız: \n" + error.message + "\n\n(Not: Token süresi dolmuş veya hatalı olabilir. Yeni bir Token almayı deneyin.)");
     } finally {
         btn.disabled = false;
@@ -715,7 +754,7 @@ async function saveData(ilAdi, dataObj, shaParam) {
         message: `${ilAdi} - Veri Güncellemesi - ${new Date().toLocaleString()}`,
         content: base64Content
     };
-    if(shaParam) payload.sha = shaParam;
+    if(shaParam) payload.sha = shaParam; // Eğer dosya yeniyse bu boş gider, Github yeni dosya oluşturur
 
     const url = `${REPO_API_URL}${ilAdi}.json`;
     const putResponse = await fetch(url, {
@@ -730,20 +769,18 @@ async function saveData(ilAdi, dataObj, shaParam) {
     }
 
     const responseData = await putResponse.json();
-    if (ilAdi === currentIl) {
-        currentFileSHA = responseData.content.sha;
-    }
+    
+    // İşlem başarılıysa bellekteki SHA kodunu güncelle
+    fileSHAs[ilAdi] = responseData.content.sha;
 }
 
 async function excelIndirTumIller() {
-    if (illerListesi.length === 0) return alert("İndirilecek veri yok.");
-    
     document.getElementById('loader').style.display = 'block';
-    showToast("Tüm illerin verileri toplanıyor, lütfen bekleyin...");
+    showToast("Veriler toplanıyor, lütfen bekleyin...");
     
     let allCombinedData = [];
     
-    for (const il of illerListesi) {
+    for (const il of SABIT_ILLER) {
         try {
             const response = await fetch(`${REPO_API_URL}${il}.json`, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
             if (response.ok) {
@@ -825,14 +862,22 @@ function showToast(message) {
     toast.className = "show";
     setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
 }
+
 function markAsDirty() {
+    if (!isDirty) {
+        isDirty = true;
+        showToast("⚠️ Değişiklik yaptınız, KAYDET butonuna basmayı unutmayın!");
+    }
     const btn = document.getElementById('githubKaydetBtn');
-    btn.classList.remove('success'); btn.classList.add('warning');
-    btn.innerHTML = `💾 Değişiklikleri Kaydet`;
+    btn.classList.add('btn-needs-save');
+    btn.innerHTML = `⚠️ KAYDET (Değişiklik Var)`;
 }
+
 function markAsClean() {
+    isDirty = false;
     const btn = document.getElementById('githubKaydetBtn');
-    btn.classList.remove('warning'); btn.classList.add('success');
+    btn.classList.remove('btn-needs-save');
+    btn.classList.add('success');
     btn.innerHTML = `💾 Kaydet`;
 }
 </script>
