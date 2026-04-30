@@ -8,10 +8,19 @@
       "BİRİM": "AKDAM",
       "UYGULAMA": "GÜNCELLEME",
       "İHALELİ/MÜDÜRLÜK": "İhaleli",
-      "DURUMU": "",
+      "DURUMU": "TAPU KAYIT KARŞILAŞTIRMA",
       "GÜNCELLEME PARSEL": "850",
       "İDÖ PARSEL": "200",
-      "TOPLAM PARSEL": 1050
+      "TOPLAM PARSEL": 1050,
+      "ALTLIK GİRİŞİ": "TAMAM",
+      "ARAZİ (UÇUŞ)": "EKSİK",
+      "ARAZİ (KÖYİÇİ)": "EKSİK",
+      "DEĞERLENDİRME": "TAMAM",
+      "KROKİ": "EKSİK",
+      "TUTANAK": "TAMAM",
+      "BİLGİLENDİRME İLANI": "2026-04-30",
+      "BİLGİLENDİRME İLANI İNİŞ": "2026-05-14",
+      "ÇALIŞMA DURUMU": "TAMAM"
     }
   ],
   "customColumns": [],
