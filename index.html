@@ -23,7 +23,6 @@
         .container { max-width: 1800px; margin: 0 auto; background-color: #ffffff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { color: #0056b3; text-align: center; border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px; }
         
-        /* İl Seçici Stili */
         .city-selector-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 25px; background: #eef2f5; padding: 15px; border-radius: 8px; border: 1px solid #cce; }
         .city-selector-container label { font-size: 18px; font-weight: bold; color: #0056b3; }
         .city-selector-container select { width: 300px; font-size: 16px; padding: 10px; border-radius: 5px; border: 1px solid #0056b3; }
@@ -190,7 +189,8 @@ const GITHUB_KULLANICI_ADI = "gokhangeo";
 const GITHUB_REPO_ADI = "hataybm";
 
 // GitHub tarafından sağlanan Token'ı güvenlik için iki parça halinde yazıyoruz.
-const token_part1 = 'Ghp_1Im4128xUP1uC8Oov';
+// DÜZELTME: Token her zaman "ghp_" ile başlar.
+const token_part1 = 'ghp_1Im4128xUP1uC8Oov';
 const token_part2 = '8yBd7oahk2S6a0aGBTj';
 const GITHUB_TOKEN = token_part1 + token_part2; 
 // ======================================================================
@@ -213,7 +213,7 @@ let confirmCallback = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     initAnimatedBackground();
-    baslangicKurulumu(); // GitHub'dan illeri çeker ve başlatır
+    baslangicKurulumu(); 
     
     document.getElementById('aramaKutusu').addEventListener('keyup', filtrele);
     document.getElementById('durumFiltresi').addEventListener('change', filtrele);
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('tableContainer').addEventListener('click', handleTableClick);
 
     document.getElementById('yeniKayitBtn').addEventListener('click', () => {
-        document.getElementById('yeni-il').value = currentIl; // Otomatik olarak mevcut ili getir
+        document.getElementById('yeni-il').value = currentIl; 
         document.getElementById('yeni-ilce').value = '';
         document.getElementById('yeni-birim').value = '';
         document.getElementById('yeni-uygulama').value = 'GÜNCELLEME';
@@ -305,7 +305,6 @@ function initAnimatedBackground() {
     animate();
 }
 
-// 1. REPO'DAKİ İLLERİ (JSON DOSYALARINI) BULMA
 async function baslangicKurulumu() {
     document.getElementById('main-app-container').style.display = 'block';
     document.getElementById('loader').style.display = 'block';
@@ -318,9 +317,14 @@ async function baslangicKurulumu() {
             illerListesi = files
                 .filter(f => f.name.endsWith('.json') && !['package.json', 'manifest.json'].includes(f.name))
                 .map(f => f.name.replace('.json', '').toUpperCase());
+        } else if (response.status === 404) {
+            // Depo boş veya hatalı
+            illerListesi = [];
+        } else {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `Hata Kodu: ${response.status}`);
         }
 
-        // Dropdown'ı doldur
         const ilSecici = document.getElementById('ilSecici');
         ilSecici.innerHTML = '';
         
@@ -331,17 +335,15 @@ async function baslangicKurulumu() {
             illerListesi.sort().forEach(il => {
                 ilSecici.innerHTML += `<option value="${il}">${il}</option>`;
             });
-            // İlk ili yükle
             currentIl = illerListesi[0];
             await fetchCityData(currentIl);
         }
     } catch (error) {
-        alert("GitHub deposuna bağlanılamadı. Lütfen Token ve Repo bilgilerinizi kontrol edin.");
+        alert("Bağlantı Hatası: " + error.message + "\n\n(Lütfen Token veya Depo adını kontrol edin.)");
         document.getElementById('loader').style.display = 'none';
     }
 }
 
-// 2. SEÇİLİ İLİN VERİLERİNİ YÜKLE
 async function loadSelectedIl() {
     const secili = document.getElementById('ilSecici').value;
     if (secili) {
@@ -355,7 +357,6 @@ async function fetchCityData(ilAdi) {
     const fileName = `${currentIl}.json`;
     const url = `${REPO_API_URL}${fileName}`;
     
-    // Varsayılan boş yapı
     globalData = {
         isTakipData: [],
         customColumns: [],
@@ -599,7 +600,6 @@ async function addYeniKayit() {
         newRow['BLOK SAYISI'] = document.getElementById('yeni-2b-blok').value || 0;
     }
 
-    // Eğer yazılan İl şu anki açık olan il ise direkt ekle
     if (il === currentIl || currentIl === '') {
         if(currentIl === '') {
              currentIl = il;
@@ -615,25 +615,19 @@ async function addYeniKayit() {
         showTab(targetTab);
         showToast('Yeni kayıt eklendi.');
     } else {
-        // Eğer farklı bir İl yazıldıysa, önce mevcutu kaydetmemiz ve diğer ili çekmemiz lazım.
-        // Kullanıcı kolaylığı için, arka planda halledip uyarı verelim.
         showConfirmModal(`Eklemek istediğiniz kayıt "${il}" iline ait. Sistem otomatik olarak o il'e geçiş yapıp kaydı ekleyecektir. Onaylıyor musunuz?`, async () => {
             document.getElementById('yeni-kayit-modal').style.display = 'none';
-            // Önce mevcut değişiklikleri kaydet (varsa)
             if(document.getElementById('githubKaydetBtn').classList.contains('warning')) {
                 await saveData(currentIl, globalData, currentFileSHA);
             }
             
-            // Yeni ili kontrol et, yoksa dropdowna ekle
             if (!illerListesi.includes(il)) {
                 illerListesi.push(il);
                 document.getElementById('ilSecici').innerHTML += `<option value="${il}">${il}</option>`;
             }
             
-            // Yeni ili yükle
             await fetchCityData(il);
             
-            // Yeni il'e kaydı ekle
             globalData.isTakipData.unshift(newRow);
             markAsDirty();
             renderAllTables();
@@ -694,7 +688,6 @@ function saveNoteChanges() {
     }
 }
 
-// MEVCUT İLİ GITHUB'A KAYDET
 async function saveToGitHub() {
     if (!currentIl) return;
     const btn = document.getElementById('githubKaydetBtn');
@@ -707,13 +700,12 @@ async function saveToGitHub() {
         showToast("Veriler başarıyla GitHub'a kaydedildi!");
     } catch (error) {
         markAsDirty();
-        alert("Kaydetme Başarısız: Lütfen Token süresini veya depo bilgilerini kontrol edin.");
+        alert("Kaydetme Başarısız: \n" + error.message + "\n\n(Not: Token süresi dolmuş veya hatalı olabilir. Yeni bir Token almayı deneyin.)");
     } finally {
         btn.disabled = false;
     }
 }
 
-// GENEL KAYDETME FONKSİYONU
 async function saveData(ilAdi, dataObj, shaParam) {
     const jsonString = JSON.stringify(dataObj, null, 2);
     const base64Content = btoa(unescape(encodeURIComponent(jsonString)));
@@ -731,16 +723,18 @@ async function saveData(ilAdi, dataObj, shaParam) {
         body: JSON.stringify(payload)
     });
 
-    if (!putResponse.ok) throw new Error(`API Hatası`);
+    if (!putResponse.ok) {
+        // Hata durumunda GitHub'ın verdiği mesajı gösterelim
+        const errorData = await putResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Hata Kodu: ${putResponse.status}`);
+    }
+
     const responseData = await putResponse.json();
-    
-    // Eğer kaydettiğimiz il şu an aktif ekranda ise SHA'sını güncelle
     if (ilAdi === currentIl) {
         currentFileSHA = responseData.content.sha;
     }
 }
 
-// TÜM İLLERİN VERİLERİNİ ÇEKİP EXCEL'E AKTARMA
 async function excelIndirTumIller() {
     if (illerListesi.length === 0) return alert("İndirilecek veri yok.");
     
@@ -759,8 +753,7 @@ async function excelIndirTumIller() {
                 
                 if (parsed && parsed.isTakipData) {
                     parsed.isTakipData.forEach(row => {
-                        row['İL'] = il; // Her kaydın başına illeri garantile
-                        // UI id ve gereksiz satırları excele koymamak için temizlik
+                        row['İL'] = il; 
                         const cleanRow = { ...row };
                         delete cleanRow._ui_id;
                         allCombinedData.push(cleanRow);
