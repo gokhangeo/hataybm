@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>İHALE TAKİP</title>
     
-    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
@@ -189,7 +188,6 @@ const GITHUB_KULLANICI_ADI = "gokhangeo";
 const GITHUB_REPO_ADI = "hataybm";
 
 // GitHub tarafından sağlanan Token'ı güvenlik için iki parça halinde yazıyoruz.
-// DÜZELTME: Token her zaman "ghp_" ile başlar.
 const token_part1 = 'ghp_1Im4128xUP1uC8Oov';
 const token_part2 = '8yBd7oahk2S6a0aGBTj';
 const GITHUB_TOKEN = token_part1 + token_part2; 
@@ -318,7 +316,6 @@ async function baslangicKurulumu() {
                 .filter(f => f.name.endsWith('.json') && !['package.json', 'manifest.json'].includes(f.name))
                 .map(f => f.name.replace('.json', '').toUpperCase());
         } else if (response.status === 404) {
-            // Depo boş veya hatalı
             illerListesi = [];
         } else {
             const errData = await response.json().catch(() => ({}));
@@ -374,6 +371,11 @@ async function fetchCityData(ilAdi) {
             const jsonString = decodeURIComponent(escape(atob(data.content)));
             const fetchedData = JSON.parse(jsonString);
             globalData = { ...globalData, ...fetchedData };
+        } else if (response.status === 404) {
+            // Dosya henüz yoksa 404 döner, boş veriyle başlatacağız, hata göstermeyeceğiz.
+            console.log(`${ilAdi} için henüz bir kayıt dosyası yok. Boş sayfa oluşturuluyor.`);
+        } else {
+            throw new Error(`Hata Kodu: ${response.status}`);
         }
 
         document.getElementById('ilSecici').value = currentIl;
@@ -387,7 +389,7 @@ async function fetchCityData(ilAdi) {
         if (firstTab) showTab(firstTab.dataset.uygulama);
 
     } catch (error) {
-        alert("İl verisi çekilirken hata oluştu!");
+        alert("İl verisi çekilirken bir sorun oluştu: " + error.message);
     } finally {
         document.getElementById('loader').style.display = 'none';
     }
@@ -562,7 +564,6 @@ function handleTableChange(event) {
     }
 }
 
-// YENİ KAYIT EKLEME (İLLERE GÖRE AYRIM)
 async function addYeniKayit() {
     const il = document.getElementById('yeni-il').value.trim().toUpperCase();
     const ilce = document.getElementById('yeni-ilce').value.trim().toUpperCase();
@@ -724,7 +725,6 @@ async function saveData(ilAdi, dataObj, shaParam) {
     });
 
     if (!putResponse.ok) {
-        // Hata durumunda GitHub'ın verdiği mesajı gösterelim
         const errorData = await putResponse.json().catch(() => ({}));
         throw new Error(errorData.message || `Hata Kodu: ${putResponse.status}`);
     }
