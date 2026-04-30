@@ -27,7 +27,7 @@
         .city-selector-container select { width: 300px; font-size: 16px; padding: 10px; border-radius: 5px; border: 1px solid #0056b3; }
         
         .controls { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.3s; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
         button:hover { opacity: 0.9; }
         button.danger { background-color: #dc3545; }
         button.success { background-color: #28a745; }
@@ -49,10 +49,11 @@
         }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: auto; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle; }
-        th { background-color: #007bff; color: white; font-size: 14px; position: sticky; top: 0; z-index: 2;}
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle; white-space: nowrap;}
+        th { background-color: #007bff; color: white; font-size: 13px; position: sticky; top: 0; z-index: 2;}
         tr:nth-child(even) { background-color: #f2f2f2; }
-        select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        select, input { width: 100%; min-width: 110px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input[type="number"] { min-width: 70px; }
         input[readonly], select[disabled] { background-color: #e9ecef; cursor: not-allowed; }
         .action-cell { width: 80px; text-align: center; }
         .check-cell { width: 40px; text-align: center; }
@@ -66,12 +67,12 @@
         #kayitSayaci { margin-top: 10px; font-weight: bold; color: #0056b3; }
         
         .tabs-container { border-bottom: 2px solid #dee2e6; margin-bottom: 20px; display: flex; gap: 5px; flex-wrap: wrap; }
-        .tab-btn { background-color: #f8f9fa; color: #007bff; border: 1px solid #dee2e6; border-bottom: none; padding: 10px 15px; cursor: pointer; border-radius: 5px 5px 0 0; }
+        .tab-btn { background-color: #f8f9fa; color: #007bff; border: 1px solid #dee2e6; border-bottom: none; padding: 10px 15px; cursor: pointer; border-radius: 5px 5px 0 0; font-weight: bold;}
         .tab-btn.active { background-color: #007bff; color: white; border-color: #007bff; }
         .table-wrapper { display: none; }
         .table-wrapper.active { display: block; }
         
-        #toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #dc3545; color: white; padding: 1rem 2rem; border-radius: 0.5rem; transition: bottom 0.5s; z-index: 9999; }
+        #toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #dc3545; color: white; padding: 1rem 2rem; border-radius: 0.5rem; transition: bottom 0.5s; z-index: 9999; font-weight: bold;}
         #toast.show { bottom: 30px; }
         
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; }
@@ -211,7 +212,7 @@ const GITHUB_TOKEN = token_part1 + token_part2;
 const REPO_API_URL = `https://api.github.com/repos/${GITHUB_KULLANICI_ADI}/${GITHUB_REPO_ADI}/contents/`;
 
 const SABIT_ILLER = ['ADANA', 'MERSİN', 'HATAY', 'OSMANİYE'];
-let fileSHAs = {}; // Her ilin SHA değerini tutar
+let fileSHAs = {}; 
 let currentIl = ''; 
 let isDirty = false; 
 
@@ -335,7 +336,7 @@ async function baslangicKurulumu() {
         ilSecici.innerHTML += `<option value="${il}">${il}</option>`;
     });
 
-    currentIl = 'ADANA'; // Başlangıçta ilk ili seçili yapıyoruz
+    currentIl = 'ADANA'; 
     ilSecici.value = currentIl;
     await fetchCityData(currentIl);
 }
@@ -367,7 +368,6 @@ async function fetchSingleCity(ilAdi, isAppend) {
             fileSHAs[ilAdi] = data.sha;
             const parsed = JSON.parse(decodeURIComponent(escape(atob(data.content))));
             
-            // Eğer isTakipData içindeki kayıtlarda il yoksa, garanti altına al
             if (parsed.isTakipData) {
                 parsed.isTakipData.forEach(r => r['İL'] = ilAdi);
             }
@@ -384,7 +384,7 @@ async function fetchSingleCity(ilAdi, isAppend) {
                 if (globalData.isTakipData) globalData.isTakipData.forEach(r => r['İL'] = ilAdi);
             }
         } else if (response.status === 404) {
-            fileSHAs[ilAdi] = ''; // Dosya yoksa boş
+            fileSHAs[ilAdi] = ''; 
             console.log(`${ilAdi} için henüz bir kayıt dosyası yok.`);
         } else {
             throw new Error(`Hata Kodu: ${response.status}`);
@@ -398,7 +398,6 @@ async function fetchCityData(secilenIl) {
     document.getElementById('loader').style.display = 'block';
     currentIl = secilenIl.toUpperCase();
     
-    // Verileri temizle
     globalData = {
         isTakipData: [],
         customColumns: [],
@@ -409,10 +408,10 @@ async function fetchCityData(secilenIl) {
     try {
         if (currentIl === 'TÜM İLLER') {
             for (const il of SABIT_ILLER) {
-                await fetchSingleCity(il, true); // true = append
+                await fetchSingleCity(il, true); 
             }
         } else {
-            await fetchSingleCity(currentIl, false); // false = overwrite
+            await fetchSingleCity(currentIl, false); 
         }
 
         document.getElementById('ilSecici').value = currentIl;
@@ -420,8 +419,6 @@ async function fetchCityData(secilenIl) {
         
         document.getElementById('uyari').style.display = 'block';
         document.getElementById('githubKaydetBtn').disabled = false;
-        
-        // Yeni sütun ekleme butonu TÜM İLLER görünümünde kapatılsın (karışıklığı önlemek için)
         document.getElementById('sutunYonetimiBtn').disabled = (currentIl === 'TÜM İLLER');
 
         markAsClean();
@@ -435,6 +432,16 @@ async function fetchCityData(secilenIl) {
     } finally {
         document.getElementById('loader').style.display = 'none';
     }
+}
+
+function renderCell(header, type, value) {
+    if (type === 'date') {
+        return `<td><input type="date" data-header="${header}" value="${value || ''}"></td>`;
+    } else if (type === 'select_tamam_eksik') {
+        const opts = `<option value=""></option><option value="TAMAM" ${value === 'TAMAM' ? 'selected' : ''}>TAMAM</option><option value="EKSİK" ${value === 'EKSİK' ? 'selected' : ''}>EKSİK</option>`;
+        return `<td><select data-header="${header}">${opts}</select></td>`;
+    }
+    return '';
 }
 
 function renderAllTables() {
@@ -470,9 +477,15 @@ function renderAllTables() {
         
         let dinamikSutunlarHTML = '';
         if (uygulamaAdi === 'GÜNCELLEME' || uygulamaAdi === 'GÜNCELLEME(2026)') {
-            dinamikSutunlarHTML = `<th>GÜNCELLEME PARSEL</th><th>İDÖ PARSEL</th><th>TOPLAM PARSEL</th>`;
+            dinamikSutunlarHTML = `<th>GÜNCELLEME PARSEL</th><th>İDÖ PARSEL</th><th>TOPLAM PARSEL</th>
+                <th>ALTLIK GİRİŞİ</th><th>ARAZİ (UÇUŞ)</th><th>ARAZİ (KÖYİÇİ)</th><th>DEĞERLENDİRME</th>
+                <th>KROKİ</th><th>TUTANAK</th><th>BİLGİLENDİRME İLANI</th><th>BİLGİLENDİRME İLANI İNİŞ</th>
+                <th>KESİN ASKI İLANI</th><th>KESİN ASKI İNİŞ</th><th>KESİNLEŞME TARİHİ</th><th>TAPU TESCİL TARİHİ</th>
+                <th>ÇALIŞMA DURUMU</th>`;
         } else if (uygulamaAdi === '2/B') {
-            dinamikSutunlarHTML = `<th>PARSEL SAYISI</th><th>BLOK SAYISI</th>`;
+            dinamikSutunlarHTML = `<th>PARSEL SAYISI</th><th>BLOK SAYISI</th>
+                <th>ALTLIK GİRİŞİ</th><th>ARAZİ ÖLÇÜSÜ</th><th>TUTANAK</th><th>KESİN ASKI</th>
+                <th>KESİN ASKI İNİŞ</th><th>KESİNLEŞME TARİHİ</th><th>TAPU TESCİL TARİHİ</th>`;
         } else {
             dinamikSutunlarHTML = `<th>PARSEL SAYISI</th>`; 
         }
@@ -520,11 +533,31 @@ function createRowHTML(data, tabType) {
             <td><input type="number" data-header="GÜNCELLEME PARSEL" value="${parsel || ''}"></td>
             <td><input type="number" data-header="İDÖ PARSEL" value="${ido || ''}"></td>
             <td><input type="number" data-header="TOPLAM PARSEL" value="${toplam}" readonly style="background:#e9ecef; font-weight:bold;"></td>
+            ${renderCell('ALTLIK GİRİŞİ', 'select_tamam_eksik', data['ALTLIK GİRİŞİ'])}
+            ${renderCell('ARAZİ (UÇUŞ)', 'select_tamam_eksik', data['ARAZİ (UÇUŞ)'])}
+            ${renderCell('ARAZİ (KÖYİÇİ)', 'select_tamam_eksik', data['ARAZİ (KÖYİÇİ)'])}
+            ${renderCell('DEĞERLENDİRME', 'select_tamam_eksik', data['DEĞERLENDİRME'])}
+            ${renderCell('KROKİ', 'select_tamam_eksik', data['KROKİ'])}
+            ${renderCell('TUTANAK', 'select_tamam_eksik', data['TUTANAK'])}
+            ${renderCell('BİLGİLENDİRME İLANI', 'date', data['BİLGİLENDİRME İLANI'])}
+            ${renderCell('BİLGİLENDİRME İLANI İNİŞ', 'date', data['BİLGİLENDİRME İLANI İNİŞ'])}
+            ${renderCell('KESİN ASKI İLANI', 'date', data['KESİN ASKI İLANI'])}
+            ${renderCell('KESİN ASKI İNİŞ', 'date', data['KESİN ASKI İNİŞ'])}
+            ${renderCell('KESİNLEŞME TARİHİ', 'date', data['KESİNLEŞME TARİHİ'])}
+            ${renderCell('TAPU TESCİL TARİHİ', 'date', data['TAPU TESCİL TARİHİ'])}
+            ${renderCell('ÇALIŞMA DURUMU', 'select_tamam_eksik', data['ÇALIŞMA DURUMU'])}
         `;
     } else if (tabType === '2/B') {
         dinamikHucrelerHTML = `
             <td><input type="number" data-header="PARSEL SAYISI" value="${data['PARSEL SAYISI'] || ''}"></td>
             <td><input type="number" data-header="BLOK SAYISI" value="${data['BLOK SAYISI'] || ''}"></td>
+            ${renderCell('ALTLIK GİRİŞİ', 'select_tamam_eksik', data['ALTLIK GİRİŞİ'])}
+            ${renderCell('ARAZİ ÖLÇÜSÜ', 'select_tamam_eksik', data['ARAZİ ÖLÇÜSÜ'])}
+            ${renderCell('TUTANAK', 'select_tamam_eksik', data['TUTANAK'])}
+            ${renderCell('KESİN ASKI', 'date', data['KESİN ASKI'])}
+            ${renderCell('KESİN ASKI İNİŞ', 'date', data['KESİN ASKI İNİŞ'])}
+            ${renderCell('KESİNLEŞME TARİHİ', 'date', data['KESİNLEŞME TARİHİ'])}
+            ${renderCell('TAPU TESCİL TARİHİ', 'date', data['TAPU TESCİL TARİHİ'])}
         `;
     } else {
         dinamikHucrelerHTML = `<td><input type="number" data-header="PARSEL SAYISI" value="${data['PARSEL SAYISI'] || ''}"></td>`;
@@ -651,7 +684,6 @@ async function addYeniKayit() {
     const targetTab = ihaleli === 'Müdürlük' ? 'Müdürlük' : uygulama;
     showTab(targetTab);
     
-    // Doğrudan kaydet, böylece dosya ilk kez oluşsa bile garanti altına alınır.
     await saveToGitHub();
     showToast(`${il} için yeni kayıt eklendi ve sisteme işlendi.`);
 }
@@ -714,7 +746,6 @@ async function saveToGitHub() {
     
     try {
         if (currentIl === 'TÜM İLLER') {
-            // "TÜM İLLER" ekranındaysak, verileri il bazında ayırıp ayrı ayrı kaydetmemiz gerekir
             const grouped = {};
             SABIT_ILLER.forEach(il => grouped[il] = []);
             globalData.isTakipData.forEach(row => {
@@ -732,14 +763,13 @@ async function saveToGitHub() {
                 await saveData(il, ilData, fileSHAs[il]);
             }
         } else {
-            // Tek bir il ekranındaysak sadece onu kaydet
             await saveData(currentIl, globalData, fileSHAs[currentIl]);
         }
         
         markAsClean();
         showToast("Tüm değişiklikler başarıyla GitHub'a kaydedildi!");
     } catch (error) {
-        markAsDirty(); // Kayıt tamamlanmadığı için buton uyarısı devam etsin
+        markAsDirty(); 
         alert("Kaydetme Başarısız: \n" + error.message + "\n\n(Not: Token süresi dolmuş veya hatalı olabilir. Yeni bir Token almayı deneyin.)");
     } finally {
         btn.disabled = false;
@@ -754,7 +784,7 @@ async function saveData(ilAdi, dataObj, shaParam) {
         message: `${ilAdi} - Veri Güncellemesi - ${new Date().toLocaleString()}`,
         content: base64Content
     };
-    if(shaParam) payload.sha = shaParam; // Eğer dosya yeniyse bu boş gider, Github yeni dosya oluşturur
+    if(shaParam) payload.sha = shaParam; 
 
     const url = `${REPO_API_URL}${ilAdi}.json`;
     const putResponse = await fetch(url, {
@@ -769,8 +799,6 @@ async function saveData(ilAdi, dataObj, shaParam) {
     }
 
     const responseData = await putResponse.json();
-    
-    // İşlem başarılıysa bellekteki SHA kodunu güncelle
     fileSHAs[ilAdi] = responseData.content.sha;
 }
 
