@@ -805,9 +805,10 @@ async function saveData(ilAdi, dataObj, shaParam) {
 async function excelIndirTumIller() {
     document.getElementById('loader').style.display = 'block';
     showToast("Veriler toplanıyor, lütfen bekleyin...");
-    
-    let allCombinedData = [];
-    
+
+    const wb = XLSX.utils.book_new();
+    let hasData = false;
+
     for (const il of SABIT_ILLER) {
         try {
             const response = await fetch(`${REPO_API_URL}${il}.json`, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
@@ -815,31 +816,43 @@ async function excelIndirTumIller() {
                 const data = await response.json();
                 const jsonString = decodeURIComponent(escape(atob(data.content)));
                 const parsed = JSON.parse(jsonString);
-                
-                if (parsed && parsed.isTakipData) {
-                    parsed.isTakipData.forEach(row => {
+
+                if (parsed && parsed.isTakipData && parsed.isTakipData.length > 0) {
+                    const groupedByUygulama = parsed.isTakipData.reduce((acc, row) => {
+                        const uygulama = row['UYGULAMA'] || 'DİĞER';
+                        if (!acc[uygulama]) acc[uygulama] = [];
+
                         row['İL'] = il; 
                         const cleanRow = { ...row };
                         delete cleanRow._ui_id;
-                        allCombinedData.push(cleanRow);
-                    });
+                        acc[uygulama].push(cleanRow);
+
+                        return acc;
+                    }, {});
+
+                    for (const uygulama in groupedByUygulama) {
+                        if (groupedByUygulama[uygulama].length > 0) {
+                            hasData = true;
+                            const ws = XLSX.utils.json_to_sheet(groupedByUygulama[uygulama]);
+                            let safeUygulama = uygulama.replace(/\//g, '-');
+                            let sheetName = `${il} - ${safeUygulama}`.substring(0, 31);
+                            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                        }
+                    }
                 }
             }
         } catch(e) {
             console.error(`${il} verisi alınamadı.`, e);
         }
     }
-    
-    if (allCombinedData.length > 0) {
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(allCombinedData);
-        XLSX.utils.book_append_sheet(wb, ws, 'Tüm İller Kayıtları');
+
+    if (hasData) {
         XLSX.writeFile(wb, `IhaleTakip_TumIller_${new Date().toISOString().slice(0,10)}.xlsx`);
         showToast("Tüm iller başarıyla Excel olarak indirildi.");
     } else {
         alert("Dışa aktarılacak veri bulunamadı.");
     }
-    
+
     document.getElementById('loader').style.display = 'none';
 }
 
