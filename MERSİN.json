@@ -1,6 +1,18 @@
 {
   "isTakipData": [
     {
+      "_ui_id": "row_1777641198426",
+      "Tamamlandı": "HAYIR",
+      "İL": "MERSİN",
+      "İLÇE": "YENİŞEHİR",
+      "BİRİM": "ÇİFTLİK",
+      "UYGULAMA": "2/B",
+      "İHALELİ/MÜDÜRLÜK": "İhaleli",
+      "DURUMU": "",
+      "PARSEL SAYISI": "150",
+      "BLOK SAYISI": "10"
+    },
+    {
       "_ui_id": "row_1777552619402",
       "Tamamlandı": "HAYIR",
       "İL": "MERSİN",
